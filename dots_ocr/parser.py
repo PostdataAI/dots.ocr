@@ -5,7 +5,7 @@ from multiprocessing.pool import ThreadPool, Pool
 import argparse
 
 
-from dots_ocr.model.inference import inference_with_vllm
+from dots_ocr.model.inference import inference_with_vllm, inference_with_endpoint_vllm
 from dots_ocr.utils.consts import image_extensions, MIN_PIXELS, MAX_PIXELS
 from dots_ocr.utils.image_utils import get_image_by_fitz_doc, fetch_image, smart_resize
 from dots_ocr.utils.doc_utils import fitz_doc_to_image, load_images_from_pdf
@@ -33,6 +33,8 @@ class DotsOCRParser:
         min_pixels=None,
         max_pixels=None,
         use_hf=False,
+        endpoint=None,
+        endpoint_api_key="0",
     ):
         self.dpi = dpi
 
@@ -40,6 +42,8 @@ class DotsOCRParser:
         self.ip = ip
         self.port = port
         self.model_name = model_name
+        self.endpoint = endpoint
+        self.endpoint_api_key = endpoint_api_key
         # default args for inference
         self.temperature = temperature
         self.top_p = top_p
@@ -99,16 +103,28 @@ class DotsOCRParser:
         return response
 
     def _inference_with_vllm(self, image, prompt):
-        response = inference_with_vllm(
-            image,
-            prompt,
-            model_name=self.model_name,
-            ip=self.ip,
-            port=self.port,
-            temperature=self.temperature,
-            top_p=self.top_p,
-            max_completion_tokens=self.max_completion_tokens,
-        )
+        if self.endpoint:
+            response = inference_with_endpoint_vllm(
+                image=image,
+                prompt=prompt,
+                endpoint=self.endpoint,
+                api_key=self.endpoint_api_key,
+                model_name=self.model_name,
+                temperature=self.temperature,
+                top_p=self.top_p,
+                max_completion_tokens=self.max_completion_tokens,
+            )
+        else:
+            response = inference_with_vllm(
+                image=image,
+                prompt=prompt,
+                model_name=self.model_name,
+                ip=self.ip,
+                port=self.port,
+                temperature=self.temperature,
+                top_p=self.top_p,
+                max_completion_tokens=self.max_completion_tokens,
+            )
         return response
 
     def get_prompt(self, prompt_mode, bbox=None, origin_image=None, image=None, min_pixels=None, max_pixels=None):
